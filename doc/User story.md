@@ -1,0 +1,6 @@
+# User story
+
+## Ying
+
+Ying is an 65-year old lady who lives in Mirabella, a elderly community. She is a retired nurse and has a lot of experience with tranditional medicine. She spent a lot of time with her phone, but only used it for TikTok videos and news. She is a bit skeptical about the new technology and don't know how to use it.
+Ying want some help to understand the new technology and use it to improve her daily life and her health.
