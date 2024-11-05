@@ -42,3 +42,10 @@ How it uses other components:
 Side effects:
 - User's privacy issues
 - User may not be able to find the prompt they want if the suggested prompts are not relevant to them
+
+Component 3 <br\>
+Name: **User health detectation** <br\>
+What is does: User puts in health situation, and if keywords of health situation is detected, chatbot will return phone number of caregiver. <br\>
+Inputs: string about user health situation <br\>
+Outputs: If keywords are detected, return text-based response about care giver phone number; else, ask whatelse could the chatbot help with. <br\>
+Components used: "Customizable user interface"
