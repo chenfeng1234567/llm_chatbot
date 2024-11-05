@@ -1,4 +1,3 @@
-
 Name: **Customizable User interface**
 What it does: allow users to adjust text size and background color
 Inputs: user click on a button
