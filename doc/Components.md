@@ -1,3 +1,11 @@
+
+Name: **Customizable User interface**
+What it does: allow users to adjust text size and background color
+Inputs: user click on a button
+Outputs: changes in interface or text size
+Components used: 
+Side effects: N/A
+
 Name: **Prompt Suggestion and Input**
 What it does: 
 - Provide some sample prompts for the user to choose from based on their health condition and goals, and allow the user to input their own prompt
