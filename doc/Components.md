@@ -1,7 +1,7 @@
-Component 1
-Name: Customizable User interface
-What it does: allow users to adjust text size and background color
-Inputs: user click on a button
-Outputs: changes in interface or text size
-Components used: 
-Side effects: N/A
+Component 1 <br/>
+Name: Customizable User interface <br/>
+What it does: allow users to adjust text size and background color <br/>
+Inputs: user click on a button <br/>
+Outputs: changes in interface or text size <br/>
+Components used: <br/>
+Side effects: N/A <br/>
