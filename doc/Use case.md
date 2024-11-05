@@ -7,7 +7,7 @@ Chatbot: change the background color<br>
 User: want to know how to take medication or how to deal with certain health issues<br>
 Chatbot: ask the user to consult the doctor not ask the chatbot<br>
 User: want to save the conversation<br> 
-Chatbot: download the conversation as a pdf file<br>    
-User: cannot type to chatbot<br>    
-Chatbot: enable the user to use voice to text input<br >
+Chatbot: download the conversation as a pdf file<br>
+User: cannot type to chatbot<br>
+Chatbot: enable the user to use voice to text input<br>
 

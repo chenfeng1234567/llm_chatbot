@@ -1,5 +1,4 @@
-This is an UI for a LLM chatbot with accessibility features.
-
+This is an UI for a LLM chatbot with accessibility features.<br>
 Authors:
 - Feng
 - Wenyu
