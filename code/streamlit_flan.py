@@ -1,5 +1,16 @@
 import streamlit as st
 from datetime import datetime
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
+# Load FLAN-T5 Base model and tokenizer
+@st.cache_resource  # Cache the model to avoid reloading on every app rerun
+def load_flan_model():
+    model_name = "google/flan-t5-base"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    return model, tokenizer
+
+model, tokenizer = load_flan_model()
 
 # Initialize session storage for multiple sessions
 if "all_sessions" not in st.session_state:
@@ -74,8 +85,12 @@ if st.button("Send"):
         # Add user message to the current session history
         current_session_history.append({"role": "user", "text": user_input})
         
-        # Placeholder bot response (replace with model integration if needed)
-        bot_response = f"This is a response to '{user_input}'"
+        # Generate a response using the FLAN-T5 model
+        input_ids = tokenizer.encode(user_input, return_tensors="pt")
+        output_ids = model.generate(input_ids, max_length=50, num_return_sequences=1, temperature=0.7)
+        bot_response = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+
+        # Add bot response to the current session history
         current_session_history.append({"role": "assistant", "text": bot_response})
 
         # Update the session history with the new messages
@@ -83,4 +98,3 @@ if st.button("Send"):
 
         # Clear user input by toggling the refresh flag
         st.session_state.refresh = not st.session_state.refresh  # Toggle refresh flag
-
