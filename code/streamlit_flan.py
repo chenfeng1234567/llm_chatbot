@@ -87,6 +87,7 @@ if st.button("Send"):
         
         # Generate a response using the FLAN-T5 model
         input_ids = tokenizer.encode(user_input, return_tensors="pt")
+        # output_ids = model.generate(input_ids)
         output_ids = model.generate(input_ids, max_length=50, num_return_sequences=1, temperature=0.7)
         bot_response = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
