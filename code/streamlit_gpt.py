@@ -1,6 +1,5 @@
 # API key
 api_key = 
-
 import streamlit as st
 from datetime import datetime
 from openai import OpenAI
@@ -18,12 +17,16 @@ example_questions = [
 def initialize_session_state():
     session_defaults = {
         "input_buffer": "",  # Buffer to handle user input
-        "followup_questions": [],  # To store dynamic follow-up questions
+        "current_question": None,  # Currently selected example question
+        "current_followups": [],  # Currently active follow-up questions
+        "followup_questions": [],  # All generated follow-up questions
         "all_sessions": {},  # To store chat sessions
         "current_session_id": None,
         "wide_mode": False,
         "theme": "Light",
         "font_size": "Medium",
+        "is_thinking": False,  # To track response generation
+        "show_example_questions": True,  # Track whether to show example questions
     }
     for key, default_value in session_defaults.items():
         if key not in st.session_state:
@@ -44,8 +47,11 @@ def start_new_session():
     session_id = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.session_state["all_sessions"][session_id] = []  # Initialize empty chat history
     st.session_state["current_session_id"] = session_id
-    st.session_state["followup_questions"] = []  # Reset follow-up questions
+    st.session_state["show_example_questions"] = True
+    st.session_state["current_question"] = None  # Reset current question
+    st.session_state["current_followups"] = []  # Reset follow-up questions
     st.session_state["input_buffer"] = ""  # Clear input buffer
+    st.session_state["is_thinking"] = False
 
 # Start the first session if none exists
 if not st.session_state["all_sessions"]:
@@ -53,7 +59,7 @@ if not st.session_state["all_sessions"]:
 
 # Sidebar for settings
 with st.sidebar:
-    st.markdown("<h2 style='color: inherit;'>App Settings</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: black;'>App Settings</h2>", unsafe_allow_html=True)
 
     # Theme selection
     st.session_state["theme"] = st.radio("Theme", ["Light", "Dark"], index=0 if st.session_state["theme"] == "Light" else 1)
@@ -131,8 +137,14 @@ st.markdown(
     input::placeholder {{
         color: {input_placeholder_color};
     }}
-    .user-message, .assistant-message {{
+    .user-message, .assistant-message, .markdown-response {{
         {selected_font_style}
+    }}
+    button {{
+        color: black !important;  /* Force button text color to black */
+    }}
+    .stButton > button {{
+        color: black !important; /* Ensure button text is black */
     }}
     </style>
     """,
@@ -142,29 +154,31 @@ st.markdown(
 # Main App Title
 st.title("Miranet Chatbot")
 
-# Display chat history
+# Display chat history dynamically
+chat_placeholder = st.empty()
 current_session_history = st.session_state["all_sessions"][st.session_state["current_session_id"]]
-for message in current_session_history:
-    if message["role"] == "user":
-        st.markdown(f"<div class='user-message' style='background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
-    else:
-        st.markdown(f"<div class='assistant-message' style='background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
+with chat_placeholder.container():
+    for message in current_session_history:
+        if message["role"] == "user":
+            st.markdown(f"<div class='user-message' style='background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='assistant-message' style='background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
 
-# Display example questions for new sessions
-if len(current_session_history) == 0:
-    st.markdown("### Example Questions")
-    for question in example_questions:
-        if st.button(question):
-            st.session_state["input_buffer"] = question
+# Placeholder for "Thinking..." message
+thinking_placeholder = st.empty()
 
-# Input field for user message
-user_input = st.text_input("Type here...", value=st.session_state["input_buffer"], key="user_input")
+def sanitize_followup_questions(questions):
+    sanitized = []
+    for question in questions:
+        # Remove leading numbers and whitespace
+        sanitized.append(question.lstrip("1234567890. ").strip())
+    return sanitized
 
 # Function to generate follow-up questions using GPT
 def generate_followup_questions(response):
     prompt = [
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Generate three follow-up questions based on this response:"},
+        {"role": "user", "content": "Generate three follow-up questions within 10 words based on this response:"},
         {"role": "assistant", "content": response}
     ]
     try:
@@ -175,46 +189,105 @@ def generate_followup_questions(response):
             temperature=0.7,
         )
         followup_text = completion.choices[0].message.content.strip()
-        return followup_text.split("\n")  # Assuming GPT returns questions as separate lines
+        raw_questions = followup_text.split("\n")  # Split lines
+        return sanitize_followup_questions(raw_questions)
     except Exception as e:
         return [f"Error generating follow-up questions: {e}"]
 
-# Handle user input
-if st.button("Send"):
-    if user_input.strip():
-        # Add user message to history
-        current_session_history.append({"role": "user", "text": user_input.strip()})
+# Process user input and generate response
+def process_input(input_text):
+    current_session_history.append({"role": "user", "text": input_text})
 
-        # Generate assistant response
-        prompt = [{"role": "system", "content": "You are a helpful assistant."}]
+    # Dynamically update the chat history to show the user message immediately
+    with chat_placeholder.container():
         for message in current_session_history:
-            prompt.append({"role": message["role"], "content": message["text"]})
-        
-        try:
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=prompt,
-                max_tokens=200,
-                temperature=0.7
-            )
-            bot_response = response.choices[0].message.content
+            if message["role"] == "user":
+                st.markdown(f"<div class='user-message' style='...'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div class='markdown-response assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
 
-            # Add assistant response to history
-            current_session_history.append({"role": "assistant", "text": bot_response})
+    # Show "Thinking..."
+    st.session_state["is_thinking"] = True  # Disable input box
+    thinking_placeholder.markdown("### Thinking... Please wait.")
 
-            # Generate follow-up questions
-            followup_questions = generate_followup_questions(bot_response)
-            st.session_state["followup_questions"] = followup_questions
-        except Exception as e:
-            current_session_history.append({"role": "assistant", "text": f"Error: {e}"})
-            st.session_state["followup_questions"] = []
+    # Prepare prompt
+    prompt = [{"role": "system", "content": "You are a helpful assistant."}]
+    for message in current_session_history:
+        prompt.append({"role": message["role"], "content": message["text"]})
 
-        # Clear input buffer
-        st.session_state["input_buffer"] = ""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=prompt,
+            max_tokens=200,
+            temperature=0.7
+        )
+        bot_response = response.choices[0].message.content
+        current_session_history.append({"role": "assistant", "text": bot_response})
+
+        # Dynamically update chat history
+        with chat_placeholder.container():
+            for message in current_session_history:
+                if message["role"] == "user":
+                    st.markdown(f"<div class='user-message' style='...'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div class='assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
+
+        # Generate follow-up questions
+        st.session_state["current_followups"] = generate_followup_questions(bot_response)
+
+    except Exception as e:
+        current_session_history.append({"role": "assistant", "text": f"Error: {e}"})
+        st.session_state["current_followups"] = []
+
+    # Clear input buffer
+    st.session_state["input_buffer"] = ""
+    st.session_state["is_thinking"] = False
+    thinking_placeholder.empty()
+
+# Display example questions for new sessions
+if st.session_state.get("show_example_questions", True) and len(current_session_history) == 0:
+    st.markdown("### Example Questions")
+    clicked_question = None  # Temporary variable to detect clicks
+
+    # Render buttons for example questions
+    for i, question in enumerate(example_questions):
+        if st.button(question, key=f"example_{i}"):
+            clicked_question = question  # Store the clicked question
+
+    # If a question is clicked, process it
+    if clicked_question:
+        st.session_state["current_question"] = clicked_question
+        st.session_state["current_followups"] = []  # Clear follow-up questions
+        st.session_state["input_buffer"] = clicked_question
+        st.session_state["is_thinking"] = True
+        st.session_state["show_example_questions"] = False  # Hide example questions
+        process_input(clicked_question)
+
+def handle_button_click():
+    user_input = st.session_state["input_buffer"]
+    if user_input.strip():
+        st.session_state["show_example_questions"] = False  # Hide example questions
+        process_input(user_input.strip())
+        st.session_state["input_buffer"] = ""  # Clear input buffer
+
+# Input field for user message
+user_input = st.text_input(
+    "Type here...",
+    value=st.session_state["input_buffer"],
+    disabled=st.session_state.get("is_thinking", False),
+    key="user_input"
+)
+if st.button("Enter"):
+    handle_button_click()
 
 # Follow-Up Questions Section
-if st.session_state["followup_questions"]:
+if st.session_state["current_followups"]:
     st.markdown("### Suggested Follow-Up Questions")
-    for followup in st.session_state["followup_questions"]:
-        if st.button(followup):
+    for i, followup in enumerate(st.session_state["current_followups"]):
+        if st.button(followup, key=f"followup_{i}"):
             st.session_state["input_buffer"] = followup
+            st.session_state["show_example_questions"] = False 
+            st.session_state["current_followups"] = []
+            st.session_state["is_thinking"] = True
+            process_input(followup)
