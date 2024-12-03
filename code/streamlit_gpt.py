@@ -1,5 +1,6 @@
 # API key
-api_key = 
+api_key =
+
 import streamlit as st
 from datetime import datetime
 from openai import OpenAI
@@ -257,29 +258,34 @@ if st.session_state.get("show_example_questions", True) and len(current_session_
 
     # If a question is clicked, process it
     if clicked_question:
+        st.session_state["show_example_questions"] = False  # Hide example questions
         st.session_state["current_question"] = clicked_question
         st.session_state["current_followups"] = []  # Clear follow-up questions
         st.session_state["input_buffer"] = clicked_question
         st.session_state["is_thinking"] = True
-        st.session_state["show_example_questions"] = False  # Hide example questions
         process_input(clicked_question)
 
-def handle_button_click():
-    user_input = st.session_state["input_buffer"]
-    if user_input.strip():
+def handle_input():
+    """Handles input submission."""
+    user_input = st.session_state.get("input_buffer", "").strip()
+    if user_input:
         st.session_state["show_example_questions"] = False  # Hide example questions
-        process_input(user_input.strip())
-        st.session_state["input_buffer"] = ""  # Clear input buffer
+        process_input(user_input)  # Process the input
+        st.session_state["input_buffer"] = ""  # Clear the input buffer after processing
 
 # Input field for user message
-user_input = st.text_input(
+st.text_input(
     "Type here...",
-    value=st.session_state["input_buffer"],
-    disabled=st.session_state.get("is_thinking", False),
-    key="user_input"
+    value=st.session_state.get("input_buffer", ""),  # Use "input_buffer" for the input field
+    key="input_buffer",  # Link directly to "input_buffer"
+    on_change=handle_input,  # Trigger on pressing "Enter" key
+    placeholder="Type your message and press Enter...",
+    disabled=st.session_state.get("is_thinking", False)
 )
+
+# Enter button for message submission
 if st.button("Enter"):
-    handle_button_click()
+    handle_input()  # Trigger the same function as the "Enter" key
 
 # Follow-Up Questions Section
 if st.session_state["current_followups"]:
