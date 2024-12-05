@@ -6,7 +6,7 @@ James is a 78 year old man who lives alone in Mirabella. He has problems with hi
 
 ## Ying
 
-Ying is an 65-year old lady who lives in Mirabella, a elderly community. She is a retired nurse and has a lot of experience with tranditional medicine. She spent a lot of time with her phone, but only used it for TikTok videos and news. She is a bit skeptical about the new technology and don't know how to use it. Ying want some help to understand the new technology and use it to improve her daily life and her health.
+Ying is an 65-year old lady who lives in Mirabella, an elderly community. She is a retired nurse and has a lot of experience with tranditional medicine. She spent a lot of time with her phone, but only used it for TikTok videos and news. She is a bit skeptical about the new technology and don't know how to use it. Ying want some help to understand the new technology and use it to improve her daily life and her health.
 
 ## Mark
 
@@ -38,11 +38,11 @@ Wei is a 71-year-old retired businessman from China, and having been living in t
 
 ## Susan
 
-Susan is a 74-year-old retired nurse who has embraced her love of photography in her retirement. Her smartphone is packed with pictures of sunsets, flowers, and wildlife from her local parks. While she is comfortable using basic camera functions, Susan struggles with editing photos and organizing her digital albums. She wants the chatbot to recommend easy-to-use photo editing apps and provide step-by-step tutorials on how to enhance her photography. Susan also hopes the chatbot can introduce her to online photography communities where she can showcase her work and learn from others.
+Susan is a 66 year old retired nurse who has embraced her love of photography in her retirement. Her smartphone is packed with photos. Susan struggles with editing photos and organizing her digital albums. She wants the chatbot to recommend easy-to-use photo editing apps and provide step-by-step tutorials on how to enhance her photography. 
 
 ## Carlos
 
-Carlos, a 79-year-old man from Puerto Rico, has spent his entire life immersed in music. As a former guitarist in a small band, music is still his passion. He speaks Spanish as his primary language and uses English occasionally. Carlos hopes the chatbot can help him find sheet music for his favorite songs, suggest new guitar lessons, and even find Spanish-language videos that inspire him to try new techniques. He dreams of one day teaching his grandchildren to play the guitar and hopes the chatbot can assist him in planning these lessons.
+Carlos, a 79-year-old man from Brazil. Carlos is not fluent in English and hopes the chatbot can help him learn English.
 
 ## Oleg
 
@@ -78,4 +78,4 @@ Richard is a 75 year old retired construction worker who loves gardening. He has
 
 ## Christine
 
-Christine is a 70-year-old woman retired schoolteacher and is interested in learning how to stay active. She hopes the chatbot can guide her through light exercise routines. In addition, she is a vegetarian so she hopes the chatbot can provide meal ideas to help her sustain intake of protein and other key nutrients.
+Christine is a 70-year-old female retired schoolteacher and is interested in learning how to stay active. She hopes the chatbot can guide her through light exercise routines. In addition, she is a vegetarian so she hopes the chatbot can provide meal ideas to help her sustain intake of protein and other key nutrients.
