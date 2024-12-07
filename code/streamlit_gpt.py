@@ -1,16 +1,85 @@
 # API key
-api_key =
-
+api_key = 
 import streamlit as st
 from datetime import datetime
 from openai import OpenAI
+
+#general prompt for the chatbot
+SYSTEM_PROMPTS = {
+    "default": """You are a helpful AI assistant. Please:
+1. Provide clear and concise answers
+2. Be friendly and professional
+3. If you're unsure, admit it
+4. Keep responses focused and relevant
+5. Provide short answers in 1 paragraph, only provide bullet point when users ask for instruction""",
+   
+    "retirement_assistant": """You are a caring and patient retirement community assistant. Please:
+1. Provide clear and simple explanations, avoiding jargon unless necessary, and always explain any technical terms.
+2. Speak in a warm, conversational tone, as though you are talking to a beloved elder.
+3. Be patient and polite, ensuring your responses are easy to follow and reassuring.
+4. Use examples and analogies from daily life to clarify concepts.
+5. Offer step-by-step instructions for tasks involving technology or health management.
+6. Make your responses as human-like and understanding as possible, acknowledging concerns or confusion gently.
+
+### Three Key Scenarios You Handle:
+1. **Technology-related queries:** For straightforward questions like "How do I install an app on my phone?", use the user's provided information (such as iPhone or Android) to give tailored responses. 
+
+2. **Wellness and nutrition inquiries:** For questions such as "How do I increase Vitamin C intake?", use user information (e.g. their dietary preference) and your expertise in nutrition and wellness to give tailored responses. 
+
+### Important: Avoid giving answers when users ask about complex medication, treatment, diagnosis, symptoms, or medical conditions.""",
+    
+    "schedule_menu": """You are a retirement community assistant providing information about daily menus and activities. When responding:
+1. Generate realistic, varied daily menus including breakfast, lunch, and dinner options
+2. Create engaging activity schedules with common retirement community events
+3. Include specific times, locations, and brief descriptions
+4. Ensure activities are age-appropriate and varied (e.g., exercise classes, arts & crafts, social events)
+5. Make food options sound appetizing but realistic for a retirement community
+
+Example Menu Format:
+Breakfast (7:30 AM - 9:00 AM):
+- Main: [Option]
+- Side: [Options]
+- Beverages: [Options]
+
+Example Activity Format:
+9:00 AM - Garden Room: Morning Stretch
+10:30 AM - Community Center: [Activity]"""
+}
+
+# Select appropriate system prompt based on user input.
+def select_prompt_by_context(user_input: str) -> str:
+    try:
+        schedule_menu_keywords = ['menu', 'dining', 'breakfast', 'lunch', 'dinner', 'schedule', 'activity', 'activities', "today's"]
+        health_tech_keywords = ['health', 'app', 'phone', 'vitamin', 'diet', 'exercise', 'install', 'setup', 'computer']
+        if any(keyword in user_input.lower() for keyword in schedule_menu_keywords):
+            return SYSTEM_PROMPTS["schedule_menu"]
+        if any(keyword in user_input.lower() for keyword in health_tech_keywords):
+            return SYSTEM_PROMPTS["retirement_assistant"]
+        return SYSTEM_PROMPTS["default"]
+    except Exception as e:
+        st.error(f"Error in prompt selection: {str(e)}")
+        return SYSTEM_PROMPTS["default"]
+
+# Generate context information for the current session.
+def get_context_data() -> str:
+    try:
+        message_count = len(st.session_state["all_sessions"][st.session_state["current_session_id"]])
+        return f"""
+        Current time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        Session length: {message_count} messages
+        """
+    except Exception as e:
+        return f"""
+        Current time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        Session length: 0 messages
+        """
 
 # Example questions
 example_questions = [
     "What are some exercises for seniors?",
     "How can I make healthy cookies?",
-    "What is today's dining menu?",
-    "Who can I contact for medical assistance?",
+    "What's on the dining menu today?",
+    "How to set up phone calendar reminder for the event?",
     "What is today's community activity schedule?"
 ]
 
@@ -36,9 +105,9 @@ def initialize_session_state():
 # Call the initialization function
 initialize_session_state()
 
-# Set page layout dynamically
-layout = "wide" if st.session_state["wide_mode"] else "centered"
-st.set_page_config(layout=layout)
+# # Set page layout dynamically
+# layout = "wide" if st.session_state["wide_mode"] else "centered"
+# st.set_page_config(layout=layout)
 
 # Initialize OpenAI client
 client = OpenAI(api_key=api_key)
@@ -195,11 +264,11 @@ def generate_followup_questions(response):
     except Exception as e:
         return [f"Error generating follow-up questions: {e}"]
 
-# Process user input and generate response
+#new prompt with prompt engineering
 def process_input(input_text):
     current_session_history.append({"role": "user", "text": input_text})
 
-    # Dynamically update the chat history to show the user message immediately
+    # Update chat display
     with chat_placeholder.container():
         for message in current_session_history:
             if message["role"] == "user":
@@ -207,26 +276,41 @@ def process_input(input_text):
             else:
                 st.markdown(f"<div class='markdown-response assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
 
-    # Show "Thinking..."
-    st.session_state["is_thinking"] = True  # Disable input box
+    st.session_state["is_thinking"] = True
     thinking_placeholder.markdown("### Thinking... Please wait.")
 
-    # Prepare prompt
-    prompt = [{"role": "system", "content": "You are a helpful assistant."}]
-    for message in current_session_history:
-        prompt.append({"role": message["role"], "content": message["text"]})
-
     try:
+        # Select appropriate system prompt and get context
+        system_prompt = select_prompt_by_context(input_text)
+        context_data = get_context_data()
+        
+        # Prepare engineered prompt
+        engineered_prompt = [
+            {"role": "system", "content": system_prompt + """
+IMPORTANT: Always follow these guidelines strictly:
+1. Keep responses concise under 200 words and in a single paragraph unless specifically asked for bullet points
+2. When providing bullet points or numbered lists:
+   - Place each point on a new line
+   - Add a blank line between points
+   - Use clear numbering or bullet points"""
+            },
+            {"role": "system", "content": context_data}
+        ]
+        # Add conversation history
+        for message in current_session_history:
+            engineered_prompt.append({"role": message["role"], "content": message["text"]})
+
+        # Generate response
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=prompt,
+            messages=engineered_prompt,
             max_tokens=200,
             temperature=0.7
         )
         bot_response = response.choices[0].message.content
         current_session_history.append({"role": "assistant", "text": bot_response})
 
-        # Dynamically update chat history
+        # Update chat display
         with chat_placeholder.container():
             for message in current_session_history:
                 if message["role"] == "user":
@@ -241,29 +325,72 @@ def process_input(input_text):
         current_session_history.append({"role": "assistant", "text": f"Error: {e}"})
         st.session_state["current_followups"] = []
 
-    # Clear input buffer
-    st.session_state["input_buffer"] = ""
     st.session_state["is_thinking"] = False
     thinking_placeholder.empty()
+
+#Process user input and generate response (old version without prompt engineering)
+# def process_input(input_text):
+#     current_session_history.append({"role": "user", "text": input_text})
+
+#     # Dynamically update the chat history to show the user message immediately
+#     with chat_placeholder.container():
+#         for message in current_session_history:
+#             if message["role"] == "user":
+#                 st.markdown(f"<div class='user-message' style='...'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+#             else:
+#                 st.markdown(f"<div class='markdown-response assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
+
+#     # Show "Thinking..."
+#     st.session_state["is_thinking"] = True  # Disable input box
+#     thinking_placeholder.markdown("### Thinking... Please wait.")
+
+#     # Prepare prompt
+#     prompt = [{"role": "system", "content": "You are a helpful assistant."}]
+#     for message in current_session_history:
+#         prompt.append({"role": message["role"], "content": message["text"]})
+
+#     try:
+#         response = client.chat.completions.create(
+#             model="gpt-3.5-turbo",
+#             messages=prompt,
+#             max_tokens=200,
+#             temperature=0.7
+#         )
+#         bot_response = response.choices[0].message.content
+#         current_session_history.append({"role": "assistant", "text": bot_response})
+
+#         # Dynamically update chat history
+#         with chat_placeholder.container():
+#             for message in current_session_history:
+#                 if message["role"] == "user":
+#                     st.markdown(f"<div class='user-message' style='...'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+#                 else:
+#                     st.markdown(f"<div class='assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
+
+#         # Generate follow-up questions
+#         st.session_state["current_followups"] = generate_followup_questions(bot_response)
+
+#     except Exception as e:
+#         current_session_history.append({"role": "assistant", "text": f"Error: {e}"})
+#         st.session_state["current_followups"] = []
+
+#     # Clear input buffer
+#     st.session_state["input_buffer"] = ""
+#     st.session_state["is_thinking"] = False
+#     thinking_placeholder.empty()
 
 # Display example questions for new sessions
 if st.session_state.get("show_example_questions", True) and len(current_session_history) == 0:
     st.markdown("### Example Questions")
-    clicked_question = None  # Temporary variable to detect clicks
-
+    
     # Render buttons for example questions
     for i, question in enumerate(example_questions):
         if st.button(question, key=f"example_{i}"):
-            clicked_question = question  # Store the clicked question
-
-    # If a question is clicked, process it
-    if clicked_question:
-        st.session_state["show_example_questions"] = False  # Hide example questions
-        st.session_state["current_question"] = clicked_question
-        st.session_state["current_followups"] = []  # Clear follow-up questions
-        st.session_state["input_buffer"] = clicked_question
-        st.session_state["is_thinking"] = True
-        process_input(clicked_question)
+            st.session_state["show_example_questions"] = False  # Hide example questions
+            st.session_state["current_question"] = question
+            st.session_state["current_followups"] = []  # Clear follow-up questions
+            st.session_state["is_thinking"] = True
+            process_input(question)  # Process the question directly
 
 def handle_input():
     """Handles input submission."""
@@ -292,7 +419,6 @@ if st.session_state["current_followups"]:
     st.markdown("### Suggested Follow-Up Questions")
     for i, followup in enumerate(st.session_state["current_followups"]):
         if st.button(followup, key=f"followup_{i}"):
-            st.session_state["input_buffer"] = followup
             st.session_state["show_example_questions"] = False 
             st.session_state["current_followups"] = []
             st.session_state["is_thinking"] = True
