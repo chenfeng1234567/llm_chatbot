@@ -1,5 +1,4 @@
 # API key
-api_key = 
 
 import streamlit as st
 from datetime import datetime
@@ -171,6 +170,31 @@ with st.sidebar:
     color_choice = st.selectbox("Custom Theme Color", list(color_options.keys()))
     selected_colors = color_options[color_choice]
 
+    # Upload background image
+    uploaded_image = st.file_uploader("Upload Background Image", type=["png", "jpg", "jpeg"])
+    if uploaded_image:
+        st.session_state["background_image"] = uploaded_image.getvalue()
+
+# Apply background image dynamically
+if "background_image" in st.session_state and st.session_state["background_image"]:
+    import base64
+
+    # Convert the uploaded image to a base64 string
+    background_image_base64 = base64.b64encode(st.session_state["background_image"]).decode()
+
+    # Add CSS for the background
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background: url("data:image/png;base64,{background_image_base64}") no-repeat center center fixed;
+            background-size: cover;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 # Apply theme-based styles
 if st.session_state["theme"] == "Light":
     app_bg_color = "white"
@@ -196,39 +220,40 @@ font_styles = {
 selected_font_style = font_styles[st.session_state["font_size"]]
 
 # Custom CSS styling
-st.markdown(
-    f"""
-    <style>
-    .appview-container {{
-        background-color: {app_bg_color};
-        color: {app_text_color};
-    }}
-    .sidebar .sidebar-content {{
-        background-color: {sidebar_bg_color};
-        color: {sidebar_text_color};
-    }}
-    .sidebar .sidebar-content h2, .sidebar-content button {{
-        color: {sidebar_text_color};
-    }}
-    input {{
-        color: {input_text_color};
-    }}
-    input::placeholder {{
-        color: {input_placeholder_color};
-    }}
-    .user-message, .assistant-message, .markdown-response {{
-        {selected_font_style}
-    }}
-    button {{
-        color: black !important;  /* Force button text color to black */
-    }}
-    .stButton > button {{
-        color: black !important; /* Ensure button text is black */
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+if "background_image" not in st.session_state or not st.session_state["background_image"]:
+    st.markdown(
+        f"""
+        <style>
+        .appview-container {{
+            background-color: {app_bg_color};
+            color: {app_text_color};
+        }}
+        .sidebar .sidebar-content {{
+            background-color: {sidebar_bg_color};
+            color: {sidebar_text_color};
+        }}
+        .sidebar .sidebar-content h2, .sidebar-content button {{
+            color: {sidebar_text_color};
+        }}
+        input {{
+            color: {input_text_color};
+        }}
+        input::placeholder {{
+            color: {input_placeholder_color};
+        }}
+        .user-message, .assistant-message, .markdown-response {{
+            {selected_font_style}
+        }}
+        button {{
+            color: black !important;  /* Force button text color to black */
+        }}
+        .stButton > button {{
+            color: black !important; /* Ensure button text is black */
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # Main App Title
 st.title("Miranet Chatbot")
