@@ -6,6 +6,18 @@ This project is a Streamlit-based chatbot designed specifically for retirement c
 
 ---
 
+## Installation & Setup
+
+1. **Install required packages**:
+   ```bash
+   pip install streamlit openai python-dotenv
+
+2. **Run the application**:
+   ```bash
+   streamlit run code/streamlit_gpt.py
+
+---
+
 ## Features
 
 - **Interactive Chatbot**: Provides answers to common queries such as exercise tips, healthy recipes, community schedules, and more.
