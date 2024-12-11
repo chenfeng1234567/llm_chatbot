@@ -1,8 +1,15 @@
 # API key
-api_key = 
+
 import streamlit as st
 from datetime import datetime
 from openai import OpenAI
+import re
+
+# from streamlit_autorefresh import st_autorefresh
+
+# # Run the autorefresh about every 5000 milliseconds (0.5 seconds) and stop
+# # after it's been refreshed 100 times.
+# count = st_autorefresh(interval=5000, limit=100, key="refresher")
 
 #general prompt for the chatbot
 SYSTEM_PROMPTS = {
@@ -20,6 +27,7 @@ SYSTEM_PROMPTS = {
 4. Use examples and analogies from daily life to clarify concepts.
 5. Offer step-by-step instructions for tasks involving technology or health management.
 6. Make your responses as human-like and understanding as possible, acknowledging concerns or confusion gently.
+7. Do not use any symbols or markdown formatting in your response. Just plain text.
 
 ### Three Key Scenarios You Handle:
 1. **Technology-related queries:** For straightforward questions like "How do I install an app on my phone?", use the user's provided information (such as iPhone or Android) to give tailored responses. 
@@ -105,9 +113,9 @@ def initialize_session_state():
 # Call the initialization function
 initialize_session_state()
 
-# # Set page layout dynamically
-# layout = "wide" if st.session_state["wide_mode"] else "centered"
-# st.set_page_config(layout=layout)
+# Set page layout dynamically
+layout = "wide" if st.session_state["wide_mode"] else "centered"
+st.set_page_config(layout=layout)
 
 # Initialize OpenAI client
 client = OpenAI(api_key=api_key)
@@ -162,6 +170,31 @@ with st.sidebar:
     color_choice = st.selectbox("Custom Theme Color", list(color_options.keys()))
     selected_colors = color_options[color_choice]
 
+    # Upload background image
+    uploaded_image = st.file_uploader("Upload Background Image", type=["png", "jpg", "jpeg"])
+    if uploaded_image:
+        st.session_state["background_image"] = uploaded_image.getvalue()
+
+# Apply background image dynamically
+if "background_image" in st.session_state and st.session_state["background_image"]:
+    import base64
+
+    # Convert the uploaded image to a base64 string
+    background_image_base64 = base64.b64encode(st.session_state["background_image"]).decode()
+
+    # Add CSS for the background
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background: url("data:image/png;base64,{background_image_base64}") no-repeat center center fixed;
+            background-size: cover;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 # Apply theme-based styles
 if st.session_state["theme"] == "Light":
     app_bg_color = "white"
@@ -187,39 +220,40 @@ font_styles = {
 selected_font_style = font_styles[st.session_state["font_size"]]
 
 # Custom CSS styling
-st.markdown(
-    f"""
-    <style>
-    .appview-container {{
-        background-color: {app_bg_color};
-        color: {app_text_color};
-    }}
-    .sidebar .sidebar-content {{
-        background-color: {sidebar_bg_color};
-        color: {sidebar_text_color};
-    }}
-    .sidebar .sidebar-content h2, .sidebar-content button {{
-        color: {sidebar_text_color};
-    }}
-    input {{
-        color: {input_text_color};
-    }}
-    input::placeholder {{
-        color: {input_placeholder_color};
-    }}
-    .user-message, .assistant-message, .markdown-response {{
-        {selected_font_style}
-    }}
-    button {{
-        color: black !important;  /* Force button text color to black */
-    }}
-    .stButton > button {{
-        color: black !important; /* Ensure button text is black */
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+if "background_image" not in st.session_state or not st.session_state["background_image"]:
+    st.markdown(
+        f"""
+        <style>
+        .appview-container {{
+            background-color: {app_bg_color};
+            color: {app_text_color};
+        }}
+        .sidebar .sidebar-content {{
+            background-color: {sidebar_bg_color};
+            color: {sidebar_text_color};
+        }}
+        .sidebar .sidebar-content h2, .sidebar-content button {{
+            color: {sidebar_text_color};
+        }}
+        input {{
+            color: {input_text_color};
+        }}
+        input::placeholder {{
+            color: {input_placeholder_color};
+        }}
+        .user-message, .assistant-message, .markdown-response {{
+            {selected_font_style}
+        }}
+        button {{
+            color: black !important;  /* Force button text color to black */
+        }}
+        .stButton > button {{
+            color: black !important; /* Ensure button text is black */
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # Main App Title
 st.title("Miranet Chatbot")
@@ -237,6 +271,14 @@ with chat_placeholder.container():
 # Placeholder for "Thinking..." message
 thinking_placeholder = st.empty()
 
+def sanitize_markdown(text):
+    """
+    Remove common Markdown symbols from the given text.
+    """
+    # Remove bold/italic markers (* or _)
+    text = re.sub(r'[*_]+', '', text)
+    return text
+    
 def sanitize_followup_questions(questions):
     sanitized = []
     for question in questions:
@@ -264,18 +306,26 @@ def generate_followup_questions(response):
     except Exception as e:
         return [f"Error generating follow-up questions: {e}"]
 
-#new prompt with prompt engineering
-def process_input(input_text):
-    current_session_history.append({"role": "user", "text": input_text})
-
-    # Update chat display
+# Update chat display to apply consistent font styling
+def update_chat_display():
     with chat_placeholder.container():
         for message in current_session_history:
             if message["role"] == "user":
-                st.markdown(f"<div class='user-message' style='...'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>User:</strong> {message['text']}</div>",
+                    unsafe_allow_html=True
+                )
             else:
-                st.markdown(f"<div class='markdown-response assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
+                # Render Assistant's response as custom HTML
+                formatted_response = message['text'].replace("\n", "<br>")  # Replace newlines with <br> for HTML formatting
+                st.markdown(
+                    f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>Assistant:</strong> {formatted_response}</div>",
+                    unsafe_allow_html=True
+                )
 
+#new prompt with prompt engineering
+def process_input(input_text):
+    current_session_history.append({"role": "user", "text": input_text})
     st.session_state["is_thinking"] = True
     thinking_placeholder.markdown("### Thinking... Please wait.")
 
@@ -287,12 +337,12 @@ def process_input(input_text):
         # Prepare engineered prompt
         engineered_prompt = [
             {"role": "system", "content": system_prompt + """
-IMPORTANT: Always follow these guidelines strictly:
-1. Keep responses concise under 200 words and in a single paragraph unless specifically asked for bullet points
-2. When providing bullet points or numbered lists:
-   - Place each point on a new line
-   - Add a blank line between points
-   - Use clear numbering or bullet points"""
+            IMPORTANT: Always follow these guidelines strictly:
+            1. Keep responses concise under 200 words and in a single paragraph unless specifically asked for bullet points
+            2. When providing bullet points or numbered lists:
+            - Place each point on a new line
+            - Add a blank line between points
+            - Use clear numbering or bullet points"""
             },
             {"role": "system", "content": context_data}
         ]
@@ -304,19 +354,13 @@ IMPORTANT: Always follow these guidelines strictly:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=engineered_prompt,
-            max_tokens=200,
-            temperature=0.7
+            max_tokens=400,
+            temperature=0.1
         )
         bot_response = response.choices[0].message.content
+        bot_response = sanitize_markdown(bot_response)
         current_session_history.append({"role": "assistant", "text": bot_response})
-
-        # Update chat display
-        with chat_placeholder.container():
-            for message in current_session_history:
-                if message["role"] == "user":
-                    st.markdown(f"<div class='user-message' style='...'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<div class='assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
+        update_chat_display()
 
         # Generate follow-up questions
         st.session_state["current_followups"] = generate_followup_questions(bot_response)
@@ -382,15 +426,51 @@ IMPORTANT: Always follow these guidelines strictly:
 # Display example questions for new sessions
 if st.session_state.get("show_example_questions", True) and len(current_session_history) == 0:
     st.markdown("### Example Questions")
-    
-    # Render buttons for example questions
+
+    # Use custom CSS for the buttons
+    st.markdown(
+        f"""
+        <style>
+        .example-question {{
+            font-size: {selected_font_style};
+            padding: 5px 5px;
+            margin: 3px 0;
+            background-color: #f8f9fa;
+            color: {app_text_color};
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            display: inline-block;
+            text-align: center;
+        }}
+        .example-question:hover {{
+            background-color: #e2e6ea;
+            border-color: #007bff;
+            color: #007bff;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Render example questions dynamically
     for i, question in enumerate(example_questions):
         if st.button(question, key=f"example_{i}"):
-            st.session_state["show_example_questions"] = False  # Hide example questions
-            st.session_state["current_question"] = question
-            st.session_state["current_followups"] = []  # Clear follow-up questions
-            st.session_state["is_thinking"] = True
-            process_input(question)  # Process the question directly
+            st.session_state["selected_question"] = question  # Save selected question in session state
+
+# Process the selected question
+if st.session_state.get("selected_question"):
+    question = st.session_state["selected_question"]
+    st.session_state["show_example_questions"] = False  # Hide example questions
+    st.session_state["current_question"] = question
+    st.session_state["current_followups"] = []  # Clear follow-up questions
+    st.session_state["is_thinking"] = True  # Indicate processing
+    process_input(question)  # Process the question
+    st.session_state["selected_question"] = None  # Clear selected question
+
+
+
+
 
 def handle_input():
     """Handles input submission."""
