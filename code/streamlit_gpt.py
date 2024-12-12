@@ -5,12 +5,6 @@ from datetime import datetime
 from openai import OpenAI
 import re
 
-# from streamlit_autorefresh import st_autorefresh
-
-# # Run the autorefresh about every 5000 milliseconds (0.5 seconds) and stop
-# # after it's been refreshed 100 times.
-# count = st_autorefresh(interval=5000, limit=100, key="refresher")
-
 #general prompt for the chatbot
 SYSTEM_PROMPTS = {
     "default": """You are a helpful AI assistant. Please:
@@ -371,57 +365,6 @@ def process_input(input_text):
 
     st.session_state["is_thinking"] = False
     thinking_placeholder.empty()
-
-#Process user input and generate response (old version without prompt engineering)
-# def process_input(input_text):
-#     current_session_history.append({"role": "user", "text": input_text})
-
-#     # Dynamically update the chat history to show the user message immediately
-#     with chat_placeholder.container():
-#         for message in current_session_history:
-#             if message["role"] == "user":
-#                 st.markdown(f"<div class='user-message' style='...'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
-#             else:
-#                 st.markdown(f"<div class='markdown-response assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
-
-#     # Show "Thinking..."
-#     st.session_state["is_thinking"] = True  # Disable input box
-#     thinking_placeholder.markdown("### Thinking... Please wait.")
-
-#     # Prepare prompt
-#     prompt = [{"role": "system", "content": "You are a helpful assistant."}]
-#     for message in current_session_history:
-#         prompt.append({"role": message["role"], "content": message["text"]})
-
-#     try:
-#         response = client.chat.completions.create(
-#             model="gpt-3.5-turbo",
-#             messages=prompt,
-#             max_tokens=200,
-#             temperature=0.7
-#         )
-#         bot_response = response.choices[0].message.content
-#         current_session_history.append({"role": "assistant", "text": bot_response})
-
-#         # Dynamically update chat history
-#         with chat_placeholder.container():
-#             for message in current_session_history:
-#                 if message["role"] == "user":
-#                     st.markdown(f"<div class='user-message' style='...'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
-#                 else:
-#                     st.markdown(f"<div class='assistant-message' style='...'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
-
-#         # Generate follow-up questions
-#         st.session_state["current_followups"] = generate_followup_questions(bot_response)
-
-#     except Exception as e:
-#         current_session_history.append({"role": "assistant", "text": f"Error: {e}"})
-#         st.session_state["current_followups"] = []
-
-#     # Clear input buffer
-#     st.session_state["input_buffer"] = ""
-#     st.session_state["is_thinking"] = False
-#     thinking_placeholder.empty()
 
 # Display example questions for new sessions
 if st.session_state.get("show_example_questions", True) and len(current_session_history) == 0:
