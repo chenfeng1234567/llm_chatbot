@@ -20,6 +20,12 @@ except (KeyError, FileNotFoundError):
     if not api_key:
         st.error("OpenAI API key not found! Please add it to your environment variables or Streamlit secrets.")
         st.stop()
+
+if not api_key:
+    api_key = st.text_input("Enter your OpenAI API key:", type="password")
+    if not api_key:
+        st.warning("Please enter an OpenAI API key to continue.")
+        st.stop()
 # Initialize OpenAI client with only the required parameters
 client = OpenAI(api_key=api_key)
 
