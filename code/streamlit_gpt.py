@@ -4,6 +4,19 @@ import streamlit as st
 from datetime import datetime
 from openai import OpenAI
 import re
+import os
+from dotenv import load_dotenv
+import locale
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8') 
+
+# Load environment variables
+load_dotenv()
+
+# Get API key from environment
+api_key = os.getenv("OPENAI_API_KEY")
+
+# Initialize OpenAI client
+client = OpenAI(api_key=api_key)
 
 #general prompt for the chatbot
 SYSTEM_PROMPTS = {
@@ -112,7 +125,7 @@ layout = "wide" if st.session_state["wide_mode"] else "centered"
 st.set_page_config(layout=layout)
 
 # Initialize OpenAI client
-client = OpenAI(api_key=api_key)
+#client = OpenAI(api_key=api_key)
 
 # Function to start a new session
 def start_new_session():
