@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Get API key from Streamlit secrets
 try:
     api_key = st.secrets["openai"]["api_key"]
 except (KeyError, FileNotFoundError):
@@ -19,8 +20,7 @@ except (KeyError, FileNotFoundError):
     if not api_key:
         st.error("OpenAI API key not found! Please add it to your environment variables or Streamlit secrets.")
         st.stop()
-
-
+# Initialize OpenAI client with only the required parameters
 client = OpenAI(api_key=api_key)
 
 #general prompt for the chatbot
