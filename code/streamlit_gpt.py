@@ -3,11 +3,10 @@
 import streamlit as st
 from datetime import datetime
 from openai import OpenAI
+import openai
 import re
 import os
 from dotenv import load_dotenv
-import locale
-locale.setlocale(locale.LC_ALL, 'en_US.UTF-8') 
 
 # Load environment variables
 load_dotenv()
@@ -15,7 +14,6 @@ load_dotenv()
 # Get API key from environment
 api_key = os.getenv("OPENAI_API_KEY")
 
-# Initialize OpenAI client
 client = OpenAI(api_key=api_key)
 
 #general prompt for the chatbot
