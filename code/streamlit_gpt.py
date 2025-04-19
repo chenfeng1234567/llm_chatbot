@@ -20,6 +20,7 @@ except (KeyError, FileNotFoundError):
         st.error("OpenAI API key not found! Please add it to your environment variables or Streamlit secrets.")
         st.stop()
 
+
 client = OpenAI(api_key=api_key)
 
 #general prompt for the chatbot
