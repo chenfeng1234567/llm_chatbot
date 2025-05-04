@@ -1,4 +1,4 @@
-# API key
+# streamlit run streamlit_gpt.py
 
 import streamlit as st
 from datetime import datetime
@@ -123,9 +123,6 @@ initialize_session_state()
 # Set page layout dynamically
 layout = "wide" if st.session_state["wide_mode"] else "centered"
 st.set_page_config(layout=layout)
-
-# Initialize OpenAI client
-#client = OpenAI(api_key=api_key)
 
 # Function to start a new session
 def start_new_session():

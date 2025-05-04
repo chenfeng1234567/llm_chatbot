@@ -11,11 +11,19 @@ This project is a Streamlit-based chatbot designed specifically for retirement c
 1. **Install required packages**:
    ```bash
    pip install streamlit openai python-dotenv
+   ```
 
-2. **Run the application**:
+2. **Set up API key**:  
+   Create a .env file in the root directory and add the following line:
+   ```bash
+   OPENAI_API_KEY=your_api_key
+   ```
+   your_api_key is the API key for the OpenAI API. You can get it from [here](https://platform.openai.com/api-keys).
+
+3. **Run the application**:
    ```bash
    streamlit run code/streamlit_gpt.py
-
+   ```
 ---
 
 ## Features
