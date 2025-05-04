@@ -3,19 +3,30 @@
 import streamlit as st
 from datetime import datetime
 from openai import OpenAI
+import openai
 import re
 import os
 from dotenv import load_dotenv
-import locale
-locale.setlocale(locale.LC_ALL, 'en_US.UTF-8') 
 
 # Load environment variables
 load_dotenv()
 
-# Get API key from environment
-api_key = os.getenv("OPENAI_API_KEY")
+# Get API key from Streamlit secrets
+try:
+    api_key = st.secrets["openai"]["api_key"]
+except (KeyError, FileNotFoundError):
+    # Fall back to environment variable
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        st.error("OpenAI API key not found! Please add it to your environment variables or Streamlit secrets.")
+        st.stop()
 
-# Initialize OpenAI client
+if not api_key:
+    api_key = st.text_input("Enter your OpenAI API key:", type="password")
+    if not api_key:
+        st.warning("Please enter an OpenAI API key to continue.")
+        st.stop()
+# Initialize OpenAI client with only the required parameters
 client = OpenAI(api_key=api_key)
 
 #general prompt for the chatbot
