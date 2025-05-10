@@ -290,6 +290,38 @@ if not st.session_state["all_sessions"]:
 # SIDEBAR LAYOUT #
 #################
 
+# Apply custom CSS to fix select box height
+st.markdown(
+    """
+    <style>
+    /* Aggressively target select box heights */
+    div[data-baseweb="select"] {
+        height: auto !important;
+    }
+    
+    /* Control the button part of select boxes */
+    div[data-baseweb="select"] > div {
+        height: auto !important;
+        min-height: 45px !important; 
+        max-height: none !important;
+    }
+    
+    /* Make inner content of select box visible */
+    div[data-baseweb="select"] span {
+        line-height: 40px !important;
+        vertical-align: middle !important;
+    }
+    
+    /* Target the dropdown options */
+    div[data-baseweb="popover"] div[role="option"] {
+        min-height: 40px !important;
+        line-height: 40px !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Sidebar for settings
 with st.sidebar:
     st.markdown("<h2 style='color: black;'>App Settings</h2>", unsafe_allow_html=True)
@@ -316,16 +348,16 @@ with st.sidebar:
     selected_session_id = st.selectbox("Select Session", session_ids, index=session_ids.index(st.session_state["current_session_id"]))
     if selected_session_id != st.session_state["current_session_id"]:
         st.session_state["current_session_id"] = selected_session_id
-        force_rerun()  # Direct call
+        force_rerun()
 
-    # Font size selection with direct force_rerun call  
+    # Font size selection
     font_size = st.selectbox("Font Size", ["Small", "Medium", "Large", "Extra Large"], 
                            index=["Small", "Medium", "Large", "Extra Large"].index(st.session_state["font_size"]))
     if font_size != st.session_state["font_size"]:
         st.session_state["font_size"] = font_size
-        force_rerun()  # Direct call instead of update_font_size()
+        force_rerun()
 
-    # Predefined color themes with direct force_rerun handling
+    # Predefined color themes
     color_options = {
         "White": {"background": "white", "text": "black"},
         "Light Blue": {"background": "lightblue", "text": "darkblue"},
@@ -335,11 +367,11 @@ with st.sidebar:
     color_choice = st.selectbox("Custom Theme Color", list(color_options.keys()))
     selected_colors = color_options[color_choice]
 
-    # Upload background image with direct force_rerun
+    # Upload background image
     uploaded_image = st.file_uploader("Upload Background Image", type=["png", "jpg", "jpeg"])
     if uploaded_image:
         st.session_state["background_image"] = uploaded_image.getvalue()
-        force_rerun()  # Direct call to refresh with new background
+        force_rerun()
 
 ################
 # STYLE SETTINGS #
@@ -395,6 +427,11 @@ if "background_image" not in st.session_state or not st.session_state["backgroun
     st.markdown(
         f"""
         <style>
+        /* Global font size for the entire app */
+        .stApp, .stApp *, .sidebar, .sidebar *, button, input, h1, h2, h3, h4, h5, h6, p, div, span, label {{
+            {selected_font_style}
+        }}
+        
         .appview-container {{
             background-color: {app_bg_color};
             color: {app_text_color};
@@ -477,7 +514,7 @@ if st.session_state.get("selected_question"):
 
 # Input field for user message
 st.text_input(
-    "Type here...",
+    "Ask anything here:",
     value=st.session_state.get("input_buffer", ""),  # Use "input_buffer" for the input field
     key="input_buffer",  # Link directly to "input_buffer"
     on_change=handle_input,  # Trigger on pressing "Enter" key
