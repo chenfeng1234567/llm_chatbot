@@ -1,4 +1,4 @@
-# streamlit run test.py
+# streamlit run streamlit_gpt.py
 
 import streamlit as st
 from datetime import datetime
