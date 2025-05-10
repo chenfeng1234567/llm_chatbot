@@ -3,7 +3,6 @@
 import streamlit as st
 from datetime import datetime
 from openai import OpenAI
-import openai
 import re
 import os
 from dotenv import load_dotenv
