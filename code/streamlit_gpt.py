@@ -196,6 +196,7 @@ def initialize_session_state():
         "font_size": "Medium",          # Current font size setting
         "is_thinking": False,           # Flag to track response generation
         "show_example_questions": True, # Flag to show/hide example questions
+        "color_theme": "White",         # Current color theme setting
     }
     for key, default_value in session_defaults.items():
         if key not in st.session_state:
@@ -364,8 +365,14 @@ with st.sidebar:
         "Light Grey": {"background": "#f0f0f0", "text": "#333333"},
         "Beige": {"background": "#f5f5dc", "text": "black"}
     }
-    color_choice = st.selectbox("Custom Theme Color", list(color_options.keys()))
+    color_choice = st.selectbox("Custom Theme Color", list(color_options.keys()), 
+                               index=list(color_options.keys()).index(st.session_state.get("color_theme", "White")))
     selected_colors = color_options[color_choice]
+
+    # Update the color theme in session state if changed
+    if color_choice != st.session_state.get("color_theme", "White"):
+        st.session_state["color_theme"] = color_choice
+        force_rerun()
 
     # Upload background image
     uploaded_image = st.file_uploader("Upload Background Image", type=["png", "jpg", "jpeg"])
