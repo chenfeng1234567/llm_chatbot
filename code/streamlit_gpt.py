@@ -1,3 +1,4 @@
+# To run the app, enter the following command in the terminal:
 # streamlit run streamlit_gpt.py
 
 import streamlit as st
@@ -318,8 +319,8 @@ with st.sidebar:
         force_rerun()  # Direct call
 
     # Font size selection with direct force_rerun call  
-    font_size = st.selectbox("Font Size", ["Small", "Medium", "Large"], 
-                           index=["Small", "Medium", "Large"].index(st.session_state["font_size"]))
+    font_size = st.selectbox("Font Size", ["Small", "Medium", "Large", "Extra Large"], 
+                           index=["Small", "Medium", "Large", "Extra Large"].index(st.session_state["font_size"]))
     if font_size != st.session_state["font_size"]:
         st.session_state["font_size"] = font_size
         force_rerun()  # Direct call instead of update_font_size()
@@ -414,6 +415,10 @@ if "background_image" not in st.session_state or not st.session_state["backgroun
         .user-message, .assistant-message, .markdown-response {{
             {selected_font_style}
         }}
+        /* Apply font size to all elements inside message containers */
+        .user-message *, .assistant-message * {{
+            {selected_font_style}
+        }}
         button {{
             color: black !important;  /* Force button text color to black */
         }}
@@ -440,9 +445,10 @@ chat_placeholder = st.empty()
 with chat_placeholder.container():
     for message in current_session_history:
         if message["role"] == "user":
-            st.markdown(f"<div class='user-message' style='background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"<div class='assistant-message' style='background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>Assistant:</strong> {message['text']}</div>", unsafe_allow_html=True)
+            formatted_response = message['text'].replace("\n", "<br>")  # Replace newlines with <br> for HTML formatting
+            st.markdown(f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>Assistant:</strong> {formatted_response}</div>", unsafe_allow_html=True)
 
 # Placeholder for "Thinking..." message
 thinking_placeholder = st.empty()
