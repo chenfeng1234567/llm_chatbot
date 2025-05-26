@@ -9,21 +9,23 @@ This project is a Streamlit-based chatbot designed specifically for retirement c
 ## Installation & Setup
 
 1. **Install required packages**:
-   ```bash
-   pip install streamlit openai python-dotenv
-   ```
 
-2. **Set up API key**:  
-   Create a .env file in the root directory and add the following line:
+   ```bash
+   pip install streamlit==1.45.0 openai==1.77.0 python-dotenv
+   ```
+2. **Set up API key**:Create a .env file in the root directory and add the following line:
+
    ```bash
    OPENAI_API_KEY=your_api_key
    ```
-   your_api_key is the API key for the OpenAI API. You can get it from [here](https://platform.openai.com/api-keys).
 
+   your_api_key is the API key for the OpenAI API. You can get it from [here](https://platform.openai.com/api-keys).
 3. **Run the application**:
+
    ```bash
    streamlit run code/streamlit_gpt.py
    ```
+
 ---
 
 ## Features
@@ -39,6 +41,7 @@ This project is a Streamlit-based chatbot designed specifically for retirement c
 ## Goal
 
 This chatbot aims to:
+
 - Enhance **access to information** within the retirement community.
 - Encourage **tech adoption** by providing a simple, approachable step-by-step guide.
 - Promote **self-sufficiency** in using technology for daily tasks and queries.
@@ -46,10 +49,11 @@ This chatbot aims to:
 By bridging the gap between technology and senior users, this project strives to empower retirees with knowledge and confidence in their digital interactions.
 
 Authors:
+
 - Feng
 - Ray
 - Luna
 - Wenyu
 - Yein
-- Ryker  
+- Ryker
 - xxx
