@@ -1,0 +1,3 @@
+This is a voice input from an elderly person who may speak slowly or have a slight accent. 
+Please transcribe clearly and consider common words used by seniors when discussing retirement, 
+health, daily activities, and technology help.

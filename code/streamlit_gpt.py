@@ -7,6 +7,7 @@ from openai import OpenAI
 import re
 import os
 import sys
+import tempfile
 from dotenv import load_dotenv
 
 #########################
@@ -66,6 +67,7 @@ default_prompt_path = os.path.join(prompt_dir, "default_prompt.txt")
 retirement_prompt_path = os.path.join(prompt_dir, "retirement_assistant_prompt.txt")
 schedule_prompt_path = os.path.join(prompt_dir, "schedule_menu_prompt.txt")
 questions_path = os.path.join(prompt_dir, "example_questions.txt")
+transcribe_prompt_path = os.path.join(prompt_dir, "transcribe_prompt.txt")
 
 # Pre-defined system prompts for different contexts
 SYSTEM_PROMPTS = {
@@ -81,6 +83,32 @@ example_questions = [q.strip() for q in example_questions_text.split('\n') if q.
 ####################
 # UTILITY FUNCTIONS #
 ####################
+
+# Transcribe audio using OpenAI Whisper API
+def transcribe_audio(audio_bytes):
+    """Transcribes audio bytes using OpenAI's Whisper API with elderly-friendly prompting."""
+    try:
+        # Create a temporary file to store the audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+            tmp_file.write(audio_bytes)
+            tmp_file_path = tmp_file.name
+
+        # Open the temporary file and transcribe
+        with open(tmp_file_path, "rb") as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                prompt=load_text_file(transcribe_prompt_path)
+            )
+        
+        # Clean up the temporary file
+        os.unlink(tmp_file_path)
+        
+        return transcript.text.strip()
+    
+    except Exception as e:
+        st.error(f"Error transcribing audio: {str(e)}")
+        return ""
 
 # Select appropriate system prompt based on user input
 def select_prompt_by_context(user_input: str) -> str:
@@ -134,7 +162,7 @@ def generate_followup_questions(response):
     """Creates relevant follow-up questions based on the assistant's response."""
     prompt = [
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Generate three follow-up questions within 10 words based on this response:"},
+        {"role": "user", "content": "Generate three follow-up questions that the user may want to ask within 10 words based on this response:"},
         {"role": "assistant", "content": response}
     ]
     try:
@@ -166,14 +194,14 @@ def update_chat_display():
         for message in current_session_history:
             if message["role"] == "user":
                 st.markdown(
-                    f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>User:</strong> {message['text']}</div>",
+                    f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>👤 User:</strong> {message['text']}</div>",
                     unsafe_allow_html=True
                 )
             else:
                 # Render Assistant's response as custom HTML
                 formatted_response = message['text'].replace("\n", "<br>")  # Replace newlines with <br> for HTML formatting
                 st.markdown(
-                    f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>Assistant:</strong> {formatted_response}</div>",
+                    f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>",
                     unsafe_allow_html=True
                 )
 
@@ -185,7 +213,6 @@ def update_chat_display():
 def initialize_session_state():
     """Sets up all necessary session state variables with default values."""
     session_defaults = {
-        "input_buffer": "",             # Buffer to handle user input
         "current_question": None,       # Currently selected example question
         "current_followups": [],        # Currently active follow-up questions
         "followup_questions": [],       # All generated follow-up questions
@@ -197,6 +224,11 @@ def initialize_session_state():
         "is_thinking": False,           # Flag to track response generation
         "show_example_questions": True, # Flag to show/hide example questions
         "color_theme": "White",         # Current color theme setting
+        "is_transcribing": False,       # Flag to track transcription process
+        "last_audio_input": None,       # Store last audio input for processing
+        "transcription_status": "",     # Status message for transcription
+        "current_input": "",            # Current text in input field
+        "last_audio_input_processed": 0, # Counter to force audio widget reset
     }
     for key, default_value in session_defaults.items():
         if key not in st.session_state:
@@ -211,8 +243,11 @@ def start_new_session():
     st.session_state["show_example_questions"] = True
     st.session_state["current_question"] = None  # Reset current question
     st.session_state["current_followups"] = []  # Reset follow-up questions
-    st.session_state["input_buffer"] = ""  # Clear input buffer
     st.session_state["is_thinking"] = False
+    st.session_state["transcription_status"] = ""  # Clear transcription status
+    st.session_state["last_audio_input"] = None  # Clear audio input
+    st.session_state["current_input"] = ""  # Clear current input
+    st.session_state["last_audio_input_processed"] = 0  # Reset audio widget counter
 
 ######################
 # PROCESSING FUNCTIONS #
@@ -223,7 +258,7 @@ def process_input(input_text):
     """Processes user input, calls OpenAI API, and updates chat history."""
     current_session_history.append({"role": "user", "text": input_text})
     st.session_state["is_thinking"] = True
-    thinking_placeholder.markdown("### Thinking... Please wait.")
+    thinking_placeholder.markdown("## 🤔 **Assistant is thinking... Please wait.**")
 
     try:
         # Select appropriate system prompt and get context
@@ -259,18 +294,37 @@ def process_input(input_text):
         current_session_history.append({"role": "assistant", "text": f"Error: {e}"})
         st.session_state["current_followups"] = []
 
+    # Complete cleanup after processing
     st.session_state["is_thinking"] = False
+    st.session_state["show_example_questions"] = False  # Always hide example questions after any input
+    st.session_state["transcription_status"] = ""  # Clear transcription status
+    st.session_state["last_audio_input"] = None  # Clear audio input
+    st.session_state["current_input"] = ""  # Clear current input
     thinking_placeholder.empty()
-    force_rerun()  # Force a rerun to refresh the UI
+    force_rerun()  # Force rerun to update UI
 
-# Handle user input submission
-def handle_input():
-    """Handles submission of text input and processes it."""
-    user_input = st.session_state.get("input_buffer", "").strip()
-    if user_input:
-        st.session_state["show_example_questions"] = False  # Hide example questions
-        process_input(user_input)  # Process the input
-        st.session_state["input_buffer"] = ""  # Clear the input buffer after processing
+# Handle audio input processing
+def handle_audio_input(audio_bytes):
+    """Handles audio input by transcribing it and updating the text input buffer."""
+    if audio_bytes and not st.session_state.get("is_transcribing", False):
+        st.session_state["is_transcribing"] = True
+        st.session_state["transcription_status"] = "🎤 Transcribing audio... Please wait."
+        
+        try:
+            # Transcribe the audio
+            transcribed_text = transcribe_audio(audio_bytes)
+            
+            if transcribed_text:
+                # Set transcribed text as current input so it appears in the text field
+                st.session_state["current_input"] = transcribed_text
+                st.session_state["transcription_status"] = f"✅ Transcribed and ready to send"
+            else:
+                st.session_state["transcription_status"] = "❌ Could not transcribe audio. Please try again."
+                
+        except Exception as e:
+            st.session_state["transcription_status"] = f"❌ Transcription error: {str(e)}"
+        
+        st.session_state["is_transcribing"] = False
 
 #####################
 # INITIALIZE THE APP #
@@ -489,13 +543,19 @@ chat_placeholder = st.empty()
 with chat_placeholder.container():
     for message in current_session_history:
         if message["role"] == "user":
-            st.markdown(f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>👤 User:</strong> {message['text']}</div>", unsafe_allow_html=True)
         else:
             formatted_response = message['text'].replace("\n", "<br>")  # Replace newlines with <br> for HTML formatting
-            st.markdown(f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>Assistant:</strong> {formatted_response}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>", unsafe_allow_html=True)
 
 # Placeholder for "Thinking..." message
 thinking_placeholder = st.empty()
+
+# Show thinking indicator when processing
+if st.session_state.get("is_thinking", False):
+    thinking_placeholder.markdown("## 🤔 **Assistant is thinking... Please wait.**")
+elif st.session_state.get("is_transcribing", False):
+    thinking_placeholder.markdown("## 🎤 **Transcribing your voice... Please wait.**")
 
 # Display example questions for new sessions
 if st.session_state.get("show_example_questions", True) and len(current_session_history) == 0:
@@ -504,10 +564,12 @@ if st.session_state.get("show_example_questions", True) and len(current_session_
     # Render example questions dynamically
     for i, question in enumerate(example_questions):
         if st.button(question, key=f"example_{i}"):
-            # Process the question immediately and update state
-            st.session_state["show_example_questions"] = False
+            # Immediate cleanup before processing
+            st.session_state["transcription_status"] = ""
+            st.session_state["last_audio_input"] = None
+            st.session_state["current_input"] = ""
+            st.session_state["last_audio_input_processed"] += 1
             process_input(question)
-            force_rerun()  # Force rerun to update UI
 
 # Process any selected question
 if st.session_state.get("selected_question"):
@@ -516,30 +578,69 @@ if st.session_state.get("selected_question"):
     st.session_state["current_question"] = question
     st.session_state["current_followups"] = []  # Clear follow-up questions
     st.session_state["is_thinking"] = True  # Indicate processing
+    # Immediate cleanup before processing
+    st.session_state["transcription_status"] = ""
+    st.session_state["last_audio_input"] = None
+    st.session_state["current_input"] = ""
+    st.session_state["last_audio_input_processed"] += 1
     process_input(question)  # Process the question
     st.session_state["selected_question"] = None  # Clear selected question
 
-# Input field for user message
-st.text_input(
-    "Ask anything here:",
-    value=st.session_state.get("input_buffer", ""),  # Use "input_buffer" for the input field
-    key="input_buffer",  # Link directly to "input_buffer"
-    on_change=handle_input,  # Trigger on pressing "Enter" key
-    placeholder="Type your message and press Enter...",
-    disabled=st.session_state.get("is_thinking", False)
+# Show transcription status if there is one
+if st.session_state.get("transcription_status", ""):
+    st.markdown(f"**{st.session_state['transcription_status']}**")
+
+# Voice input button with dynamic key to force reset
+audio_reset_key = f"audio_input_{len(current_session_history)}_{st.session_state.get('last_audio_input_processed', 0)}"
+audio_input = st.audio_input(
+    "Record your question:",
+    key=audio_reset_key,
+    disabled=st.session_state.get("is_thinking", False) or st.session_state.get("is_transcribing", False)
 )
 
-# Enter button for message submission
-if st.button("Enter"):
-    handle_input()  # Trigger the same function as the "Enter" key
+# Process audio input when new audio is recorded
+if audio_input is not None:
+    audio_bytes = audio_input.read()
+    if audio_bytes != st.session_state.get("last_audio_input"):
+        st.session_state["last_audio_input"] = audio_bytes
+        handle_audio_input(audio_bytes)
+
+# Input form for proper submission handling
+with st.form(key="input_form", clear_on_submit=True):
+    # Get current input value (either from typing or transcription)
+    input_value = st.session_state.get("current_input", "")
+    
+    user_input = st.text_input(
+        "Or type your question:",
+        value=input_value,
+        placeholder="Type your message and press Enter, or use voice input above...",
+        disabled=st.session_state.get("is_thinking", False) or st.session_state.get("is_transcribing", False)
+    )
+    
+    submitted = st.form_submit_button(
+        "Enter",
+        disabled=st.session_state.get("is_thinking", False) or st.session_state.get("is_transcribing", False)
+    )
+    
+    if submitted and user_input.strip():
+        # Immediate cleanup before processing
+        st.session_state["transcription_status"] = ""  # Clear transcription status
+        st.session_state["last_audio_input"] = None  # Clear audio input
+        st.session_state["current_input"] = ""  # Clear current input
+        st.session_state["last_audio_input_processed"] += 1  # Force audio widget reset
+        # Process the input
+        process_input(user_input.strip())
 
 # Follow-Up Questions Section
 if st.session_state["current_followups"]:
     st.markdown("### Suggested Follow-Up Questions")
     for i, followup in enumerate(st.session_state["current_followups"]):
         if st.button(followup, key=f"followup_{i}"):
-            st.session_state["show_example_questions"] = False 
+            # Immediate cleanup before processing
+            st.session_state["transcription_status"] = ""
+            st.session_state["last_audio_input"] = None
+            st.session_state["current_input"] = ""
+            st.session_state["last_audio_input_processed"] += 1
             st.session_state["current_followups"] = []
             st.session_state["is_thinking"] = True
             process_input(followup)
-            force_rerun()  # Force rerun after processing
