@@ -167,9 +167,9 @@ def generate_followup_questions(response):
     ]
     try:
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.1-mini-2025-04-14",
             messages=prompt,
-            max_tokens=100,
+            max_tokens=500,
             temperature=0.7,
         )
         followup_text = completion.choices[0].message.content.strip()
