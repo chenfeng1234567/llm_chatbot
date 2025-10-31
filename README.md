@@ -84,4 +84,9 @@ Authors:
 - Luna
 - Wenyu
 - Yein
+- Amy
+- Ethan
+- George
+- Kaylee
 - Ryker
+
