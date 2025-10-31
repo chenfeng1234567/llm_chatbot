@@ -16,13 +16,15 @@ This project is a Streamlit-based chatbot designed specifically for retirement c
 - **Session Management**: Keeps chat histories organized, enabling users to revisit past conversations
 - **Conversation Guide**: Provides possible followup questions for users to click to enable easier conversation with the chatbot
 - **Intelligent Context Selection**: Automatically selects appropriate system prompts based on your input
+- **Event Information**: Displays community schedules, menus, and activities from `prompts/events.txt` (optional web scraping available)
 
 ---
 
 ## File Structure
 
 - `code/streamlit_gpt.py`: Main application file
-- `prompts/`: Directory containing system prompt files
+- `code/web_scrapper.py`: Optional web scraping module (disabled by default)
+- `prompts/`: Directory containing system prompt files and events data
 - `requirements.txt`: Python dependencies
 - `.env`: Environment variables (create this file with your API key)
 
@@ -30,21 +32,37 @@ This project is a Streamlit-based chatbot designed specifically for retirement c
 
 1. **Install required packages**:
 
-   ```bash
-   pip install streamlit==1.45.0 openai==1.77.0 python-dotenv
-   ```
-2. **Set up API key**:Create a .env file in the root directory and add the following line:
+```bash
+pip install -r requirements.txt
+```
 
-   ```bash
-   OPENAI_API_KEY=your_api_key
-   ```
+Or install individually:
 
-   your_api_key is the API key for the OpenAI API. You can get it from [here](https://platform.openai.com/api-keys).
+```bash
+pip install streamlit==1.45.0 openai==1.77.0 python-dotenv
+```
+
+2. **Set up API key and credentials**:Create a .env file in the root directory and add the following lines:
+
+```bash
+OPENAI_API_KEY=your_api_key
+```
+
+your_api_key is the API key for the OpenAI API. You can get it from [here](https://platform.openai.com/api-keys).
+
 3. **Run the application**:
 
-   ```bash
-   streamlit run code/streamlit_gpt.py
-   ```
+```bash
+streamlit run code/streamlit_gpt.py
+```
+
+4. **Open the chatbot in your browser:**
+
+```
+http://localhost:8501
+```
+
+**Note**: By default, the app uses static events from `prompts/events.txt`. Set `USE_WEB_SCRAPER=true` in `.env` to enable live web scraping (requires Chrome browser and Selenium dependencies).
 
 ---
 

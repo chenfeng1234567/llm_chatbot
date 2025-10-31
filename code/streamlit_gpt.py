@@ -10,6 +10,16 @@ import sys
 import tempfile
 from dotenv import load_dotenv
 
+# Web scraping disabled by default
+USE_WEB_SCRAPER = os.getenv('USE_WEB_SCRAPER', 'false').lower() == 'true'
+
+if USE_WEB_SCRAPER:
+    try:
+        from web_scrapper import get_community_context
+    except ImportError:
+        USE_WEB_SCRAPER = False
+        print("Warning: Web scraper not available. Using static events file.")
+
 #########################
 # CONFIGURATION & SETUP #
 #########################
@@ -68,12 +78,38 @@ retirement_prompt_path = os.path.join(prompt_dir, "retirement_assistant_prompt.t
 schedule_prompt_path = os.path.join(prompt_dir, "schedule_menu_prompt.txt")
 questions_path = os.path.join(prompt_dir, "example_questions.txt")
 transcribe_prompt_path = os.path.join(prompt_dir, "transcribe_prompt.txt")
+events_path = os.path.join(prompt_dir, "events.txt")
+
+# Load community events/schedule information
+def get_schedule_context():
+    """Gets schedule/events information from web scraper or static file."""
+    # Add current date information
+    from datetime import datetime
+    current_date = datetime.now()
+    date_header = f"""
+=== CURRENT DATE AND TIME ===
+Today's Date: {current_date.strftime("%A %B %d, %Y")}
+Current Time: {current_date.strftime("%I:%M %p")}
+Day of Week: {current_date.strftime("%A")}
+
+=== COMMUNITY EVENTS AND SCHEDULE ===
+"""
+    
+    if USE_WEB_SCRAPER:
+        try:
+            return date_header + get_community_context()
+        except Exception as e:
+            print(f"Web scraper failed, falling back to static file: {e}")
+            return date_header + load_text_file(events_path)
+    else:
+        # Use static events file by default
+        return date_header + load_text_file(events_path)
 
 # Pre-defined system prompts for different contexts
 SYSTEM_PROMPTS = {
     "default": load_text_file(default_prompt_path),
     "retirement_assistant": load_text_file(retirement_prompt_path),
-    "schedule_menu": load_text_file(schedule_prompt_path)
+    "schedule_menu": load_text_file(schedule_prompt_path) + "\n\n" + get_schedule_context()
 }
 
 # Load example questions from file
@@ -114,7 +150,7 @@ def transcribe_audio(audio_bytes):
 def select_prompt_by_context(user_input: str) -> str:
     """Determines which system prompt to use based on keywords in user input."""
     try:
-        schedule_menu_keywords = ['menu', 'dining', 'breakfast', 'lunch', 'dinner', 'schedule', 'activity', 'activities', "today's"]
+        schedule_menu_keywords = ['menu', 'dining', 'breakfast', 'lunch', 'dinner', 'schedule', 'activity', 'activities', "today", "class", "event", "when", "where"]
         health_tech_keywords = ['health', 'app', 'phone', 'vitamin', 'diet', 'exercise', 'install', 'setup', 'computer']
         
         if any(keyword in user_input.lower() for keyword in schedule_menu_keywords):

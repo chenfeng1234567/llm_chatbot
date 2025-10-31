@@ -1,4 +1,8 @@
 streamlit==1.45.0
 openai==1.77.0
 python-dotenv==1.1.0
-httpx ==0.27.2
+httpx==0.27.2
+
+# Optional: For web scraping
+# selenium==4.15.2
+# webdriver-manager==4.0.1
