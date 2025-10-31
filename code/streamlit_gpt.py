@@ -146,6 +146,33 @@ def transcribe_audio(audio_bytes):
         st.error(f"Error transcribing audio: {str(e)}")
         return ""
 
+# Convert text to speech using OpenAI TTS API
+def text_to_speech(text, message_index):
+    """Converts text to speech using OpenAI's TTS API and plays it."""
+    try:
+        # Generate speech
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="nova",  # Using 'nova' voice which is clear and friendly
+            input=text
+        )
+        
+        # Save audio to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+            tmp_file.write(response.content)
+            tmp_file_path = tmp_file.name
+        
+        # Store the audio file path in session state for this message
+        if "audio_files" not in st.session_state:
+            st.session_state["audio_files"] = {}
+        st.session_state["audio_files"][message_index] = tmp_file_path
+        
+        return tmp_file_path
+    
+    except Exception as e:
+        st.error(f"Error generating speech: {str(e)}")
+        return None
+
 # Select appropriate system prompt based on user input
 def select_prompt_by_context(user_input: str) -> str:
     """Determines which system prompt to use based on keywords in user input."""
@@ -227,19 +254,47 @@ def force_rerun():
 def update_chat_display():
     """Renders the chat history with appropriate styling."""
     with chat_placeholder.container():
-        for message in current_session_history:
+        for idx, message in enumerate(current_session_history):
             if message["role"] == "user":
                 st.markdown(
                     f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>👤 User:</strong> {message['text']}</div>",
                     unsafe_allow_html=True
                 )
             else:
-                # Render Assistant's response as custom HTML
-                formatted_response = message['text'].replace("\n", "<br>")  # Replace newlines with <br> for HTML formatting
-                st.markdown(
-                    f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>",
-                    unsafe_allow_html=True
-                )
+                # Render Assistant's response as custom HTML with play button
+                formatted_response = message['text'].replace("\n", "<br>")
+                
+                # Create columns for message and play button
+                col1, col2 = st.columns([0.9, 0.1])
+                
+                with col1:
+                    st.markdown(
+                        f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 100%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>",
+                        unsafe_allow_html=True
+                    )
+                
+                with col2:
+                    # Add play button for text-to-speech
+                    if st.button("🔊", key=f"play_{idx}", help="Play response audio"):
+                        st.session_state["playing_audio"] = idx
+                
+                # Generate or retrieve audio if this message is selected to play
+                if st.session_state.get("playing_audio") == idx:
+                    audio_path = None
+                    if idx in st.session_state.get("audio_files", {}):
+                        audio_path = st.session_state["audio_files"][idx]
+                    else:
+                        # Show spinner in full width
+                        with st.spinner("🎵 Generating audio..."):
+                            audio_path = text_to_speech(message['text'], idx)
+                    
+                    if audio_path and os.path.exists(audio_path):
+                        # Display audio player
+                        with open(audio_path, "rb") as audio_file:
+                            audio_bytes = audio_file.read()
+                            st.audio(audio_bytes, format="audio/mp3")
+                        # Reset playing state after displaying
+                        st.session_state["playing_audio"] = None
 
 ########################
 # SESSION STATE MANAGEMENT #
@@ -265,6 +320,8 @@ def initialize_session_state():
         "transcription_status": "",     # Status message for transcription
         "current_input": "",            # Current text in input field
         "last_audio_input_processed": 0, # Counter to force audio widget reset
+        "audio_files": {},              # Store generated TTS audio file paths
+        "playing_audio": None,          # Track which message audio is playing
     }
     for key, default_value in session_defaults.items():
         if key not in st.session_state:
@@ -341,7 +398,7 @@ def process_input(input_text):
 
 # Handle audio input processing
 def handle_audio_input(audio_bytes):
-    """Handles audio input by transcribing it and updating the text input buffer."""
+    """Handles audio input by transcribing it and automatically sending it to the chatbot."""
     if audio_bytes and not st.session_state.get("is_transcribing", False):
         st.session_state["is_transcribing"] = True
         st.session_state["transcription_status"] = "🎤 Transcribing audio... Please wait."
@@ -351,16 +408,24 @@ def handle_audio_input(audio_bytes):
             transcribed_text = transcribe_audio(audio_bytes)
             
             if transcribed_text:
-                # Set transcribed text as current input so it appears in the text field
-                st.session_state["current_input"] = transcribed_text
-                st.session_state["transcription_status"] = f"✅ Transcribed and ready to send"
+                # Clear transcription flag before processing
+                st.session_state["is_transcribing"] = False
+                st.session_state["transcription_status"] = "✅ Transcribed! Processing your question..."
+                
+                # Cleanup before processing
+                st.session_state["last_audio_input"] = None
+                st.session_state["current_input"] = ""
+                st.session_state["last_audio_input_processed"] += 1
+                
+                # Automatically process the transcribed input
+                process_input(transcribed_text)
             else:
                 st.session_state["transcription_status"] = "❌ Could not transcribe audio. Please try again."
+                st.session_state["is_transcribing"] = False
                 
         except Exception as e:
             st.session_state["transcription_status"] = f"❌ Transcription error: {str(e)}"
-        
-        st.session_state["is_transcribing"] = False
+            st.session_state["is_transcribing"] = False
 
 #####################
 # INITIALIZE THE APP #
@@ -577,12 +642,40 @@ current_session_history = st.session_state["all_sessions"][st.session_state["cur
 # Display chat history dynamically
 chat_placeholder = st.empty()
 with chat_placeholder.container():
-    for message in current_session_history:
+    for idx, message in enumerate(current_session_history):
         if message["role"] == "user":
             st.markdown(f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>👤 User:</strong> {message['text']}</div>", unsafe_allow_html=True)
         else:
             formatted_response = message['text'].replace("\n", "<br>")  # Replace newlines with <br> for HTML formatting
-            st.markdown(f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>", unsafe_allow_html=True)
+            
+            # Create columns for message and play button
+            col1, col2 = st.columns([0.9, 0.1])
+            
+            with col1:
+                st.markdown(f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 100%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>", unsafe_allow_html=True)
+            
+            with col2:
+                # Add play button for text-to-speech
+                if st.button("🔊", key=f"play_main_{idx}", help="Play response audio"):
+                    st.session_state["playing_audio"] = idx
+            
+            # Generate or retrieve audio if this message is selected to play
+            if st.session_state.get("playing_audio") == idx:
+                audio_path = None
+                if idx in st.session_state.get("audio_files", {}):
+                    audio_path = st.session_state["audio_files"][idx]
+                else:
+                    # Show spinner in full width
+                    with st.spinner("🎵 Generating audio..."):
+                        audio_path = text_to_speech(message['text'], idx)
+                
+                if audio_path and os.path.exists(audio_path):
+                    # Display audio player
+                    with open(audio_path, "rb") as audio_file:
+                        audio_bytes = audio_file.read()
+                        st.audio(audio_bytes, format="audio/mp3")
+                    # Reset playing state after displaying
+                    st.session_state["playing_audio"] = None
 
 # Placeholder for "Thinking..." message
 thinking_placeholder = st.empty()

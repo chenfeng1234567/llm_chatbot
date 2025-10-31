@@ -9,8 +9,7 @@ This project is a Streamlit-based chatbot designed specifically for retirement c
 ## Features
 
 - **Interactive Chatbot**: Provides answers to common queries such as exercise tips, healthy recipes, community schedules, and more
-- **Voice Input**: Record your voice and have it automatically transcribed using OpenAI's Whisper API, optimized for elderly speech patterns
-- **Text Input**: Traditional typing interface for those who prefer keyboard input
+- **Voice Input/output**: Speak to the chatbot and hear back from it (transcribed using OpenAI's Whisper API)
 - **Example Questions**: Includes pre-set example questions to guide users in interacting with the chatbot
 - **Customizable Interface**: Allows users to adjust themes, font sizes, and layout for better accessibility
 - **Session Management**: Keeps chat histories organized, enabling users to revisit past conversations
@@ -73,7 +72,7 @@ This chatbot aims to:
 - Enhance **access to information** within the retirement community.
 - Encourage **tech adoption** by providing a simple, approachable step-by-step guide.
 - Promote **self-sufficiency** in using technology for daily tasks and queries.
-- **Improve accessibility** through voice input options for users who may have difficulty typing.
+- **Improve accessibility** through voice options for users who may have difficulty typing and reading.
 
 By bridging the gap between technology and senior users, this project strives to empower retirees with knowledge and confidence in their digital interactions.
 
@@ -89,4 +88,3 @@ Authors:
 - George
 - Kaylee
 - Ryker
-
