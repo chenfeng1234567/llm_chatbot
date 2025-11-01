@@ -230,10 +230,10 @@ def generate_followup_questions(response):
     ]
     try:
         completion = client.chat.completions.create(
-            model="gpt-4.1-mini-2025-04-14",
+            model="gpt-4.1-mini",
             messages=prompt,
-            max_tokens=500,
-            temperature=0.7,
+            max_completion_tokens=500,
+            # temperature=0.7,
         )
         followup_text = completion.choices[0].message.content.strip()
         raw_questions = followup_text.split("\n")  # Split lines
@@ -255,9 +255,13 @@ def update_chat_display():
     """Renders the chat history with appropriate styling."""
     with chat_placeholder.container():
         for idx, message in enumerate(current_session_history):
+            # Always use custom theme colors for messages, regardless of dark/light mode
+            msg_bg_color = selected_colors['background']
+            msg_text_color = selected_colors['text']
+            
             if message["role"] == "user":
                 st.markdown(
-                    f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>👤 User:</strong> {message['text']}</div>",
+                    f"<div class='user-message' style='{selected_font_style} background-color: {msg_bg_color}; color: {msg_text_color}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>👤 User:</strong> {message['text']}</div>",
                     unsafe_allow_html=True
                 )
             else:
@@ -269,7 +273,7 @@ def update_chat_display():
                 
                 with col1:
                     st.markdown(
-                        f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 100%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>",
+                        f"<div class='assistant-message' style='{selected_font_style} background-color: {msg_bg_color}; color: {msg_text_color}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 100%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>",
                         unsafe_allow_html=True
                     )
                 
@@ -289,10 +293,10 @@ def update_chat_display():
                             audio_path = text_to_speech(message['text'], idx)
                     
                     if audio_path and os.path.exists(audio_path):
-                        # Display audio player
+                        # Display audio player with autoplay
                         with open(audio_path, "rb") as audio_file:
                             audio_bytes = audio_file.read()
-                            st.audio(audio_bytes, format="audio/mp3")
+                            st.audio(audio_bytes, format="audio/mp3", autoplay=True)
                         # Reset playing state after displaying
                         st.session_state["playing_audio"] = None
 
@@ -370,10 +374,10 @@ def process_input(input_text):
 
         # Generate response
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.1-mini",
             messages=messages,
-            max_tokens=400,
-            temperature=0.1
+            max_completion_tokens=500,
+            # temperature=0.7
         )
         bot_response = response.choices[0].message.content
         bot_response = sanitize_markdown(bot_response)
@@ -486,6 +490,11 @@ with st.sidebar:
     theme_selected = st.radio("Theme", ["Light", "Dark"], index=0 if st.session_state["theme"] == "Light" else 1)
     if theme_selected != st.session_state["theme"]:
         st.session_state["theme"] = theme_selected
+        # Auto-switch custom theme color based on theme
+        if theme_selected == "Dark" and st.session_state.get("color_theme") not in ["Dark"]:
+            st.session_state["color_theme"] = "Dark"
+        elif theme_selected == "Light" and st.session_state.get("color_theme") == "Dark":
+            st.session_state["color_theme"] = "White"
         force_rerun()
 
     # Wide mode toggle - with direct force_rerun call
@@ -518,14 +527,21 @@ with st.sidebar:
         "White": {"background": "white", "text": "black"},
         "Light Blue": {"background": "lightblue", "text": "darkblue"},
         "Light Grey": {"background": "#f0f0f0", "text": "#333333"},
-        "Beige": {"background": "#f5f5dc", "text": "black"}
+        "Beige": {"background": "#f5f5dc", "text": "black"},
+        "Dark": {"background": "#2b2b2b", "text": "white"}
     }
+    
+    # Set default color theme based on current theme if not set
+    default_color = st.session_state.get("color_theme", "Dark" if st.session_state["theme"] == "Dark" else "White")
+    if default_color not in color_options:
+        default_color = "White"
+    
     color_choice = st.selectbox("Custom Theme Color", list(color_options.keys()), 
-                               index=list(color_options.keys()).index(st.session_state.get("color_theme", "White")))
+                               index=list(color_options.keys()).index(default_color))
     selected_colors = color_options[color_choice]
 
     # Update the color theme in session state if changed
-    if color_choice != st.session_state.get("color_theme", "White"):
+    if color_choice != st.session_state.get("color_theme", default_color):
         st.session_state["color_theme"] = color_choice
         force_rerun()
 
@@ -586,6 +602,16 @@ selected_font_style = font_styles[st.session_state["font_size"]]
 
 # Custom CSS styling
 if "background_image" not in st.session_state or not st.session_state["background_image"]:
+    # Set button styling based on theme
+    if st.session_state["theme"] == "Dark":
+        button_bg_color = "#2b2b2b"
+        button_text_color = "white"
+        button_border_color = "#555555"
+    else:
+        button_bg_color = "#f0f0f0"
+        button_text_color = "black"
+        button_border_color = "#cccccc"
+    
     st.markdown(
         f"""
         <style>
@@ -594,35 +620,204 @@ if "background_image" not in st.session_state or not st.session_state["backgroun
             {selected_font_style}
         }}
         
+        /* Main app background and text colors */
+        .stApp {{
+            background-color: {app_bg_color} !important;
+            color: {app_text_color} !important;
+        }}
+        
         .appview-container {{
-            background-color: {app_bg_color};
-            color: {app_text_color};
+            background-color: {app_bg_color} !important;
+            color: {app_text_color} !important;
         }}
+        
+        /* Sidebar styling - more specific selectors */
+        section[data-testid="stSidebar"] {{
+            background-color: {sidebar_bg_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] > div {{
+            background-color: {sidebar_bg_color} !important;
+        }}
+        
         .sidebar .sidebar-content {{
-            background-color: {sidebar_bg_color};
-            color: {sidebar_text_color};
+            background-color: {sidebar_bg_color} !important;
+            color: {sidebar_text_color} !important;
         }}
+        
         .sidebar .sidebar-content h2, .sidebar-content button {{
-            color: {sidebar_text_color};
+            color: {sidebar_text_color} !important;
         }}
+        
+        /* Sidebar text elements */
+        section[data-testid="stSidebar"] h1,
+        section[data-testid="stSidebar"] h2,
+        section[data-testid="stSidebar"] h3,
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] p,
+        section[data-testid="stSidebar"] div {{
+            color: {sidebar_text_color} !important;
+        }}
+        
+        /* Sidebar select boxes (dropdowns) */
+        section[data-testid="stSidebar"] .stSelectbox > div > div {{
+            background-color: {sidebar_bg_color} !important;
+            color: {sidebar_text_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stSelectbox input {{
+            background-color: {sidebar_bg_color} !important;
+            color: {sidebar_text_color} !important;
+        }}
+        
+        /* Sidebar radio buttons */
+        section[data-testid="stSidebar"] .stRadio > div {{
+            background-color: {sidebar_bg_color} !important;
+            color: {sidebar_text_color} !important;
+        }}
+        
+        /* Sidebar file uploader */
+        section[data-testid="stSidebar"] .stFileUploader {{
+            background-color: {sidebar_bg_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stFileUploader > div {{
+            background-color: {sidebar_bg_color} !important;
+            color: {sidebar_text_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stFileUploader > div > div {{
+            background-color: {sidebar_bg_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stFileUploader section {{
+            background-color: {sidebar_bg_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stFileUploader section > div {{
+            background-color: {sidebar_bg_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stFileUploader button {{
+            background-color: {button_bg_color} !important;
+            color: {button_text_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stFileUploader label {{
+            color: {sidebar_text_color} !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stFileUploader small {{
+            color: {sidebar_text_color} !important;
+        }}
+        
+        /* Dropdown menu options (the popup list) */
+        div[data-baseweb="popover"] {{
+            background-color: {sidebar_bg_color} !important;
+        }}
+        
+        div[data-baseweb="popover"] ul {{
+            background-color: {sidebar_bg_color} !important;
+        }}
+        
+        div[data-baseweb="popover"] li {{
+            background-color: {sidebar_bg_color} !important;
+            color: {sidebar_text_color} !important;
+        }}
+        
+        div[data-baseweb="popover"] li:hover {{
+            background-color: {button_bg_color} !important;
+            color: {button_text_color} !important;
+        }}
+        
+        /* Input field styling */
         input {{
-            color: {input_text_color};
+            color: {input_text_color} !important;
+            background-color: {app_bg_color} !important;
         }}
         input::placeholder {{
-            color: {input_placeholder_color};
+            color: {input_placeholder_color} !important;
         }}
+        
+        /* Text input field specific styling */
+        .stTextInput input {{
+            background-color: {app_bg_color} !important;
+            color: {input_text_color} !important;
+        }}
+        
+        /* Audio input widget styling */
+        .stAudioInput > div {{
+            background-color: {app_bg_color} !important;
+        }}
+        
+        .stAudioInput button {{
+            background-color: {button_bg_color} !important;
+            color: {button_text_color} !important;
+        }}
+        
+        /* Audio player time display */
+        .stAudioInput audio {{
+            background-color: {app_bg_color} !important;
+        }}
+        
+        .stAudioInput div[data-testid="stAudioInput"] {{
+            background-color: {app_bg_color} !important;
+        }}
+        
+        /* Audio time display text */
+        .stAudioInput time, .stAudioInput span {{
+            color: {app_text_color} !important;
+            background-color: {app_bg_color} !important;
+        }}
+        
+        /* Labels for input fields */
+        .stTextInput label, .stAudioInput label {{
+            color: {app_text_color} !important;
+        }}
+        
+        /* Message styling */
         .user-message, .assistant-message, .markdown-response {{
             {selected_font_style}
         }}
+        
         /* Apply font size to all elements inside message containers */
         .user-message *, .assistant-message * {{
             {selected_font_style}
         }}
+        
+        /* Button styling for dark theme */
         button {{
-            color: black !important;  /* Force button text color to black */
+            background-color: {button_bg_color} !important;
+            color: {button_text_color} !important;
+            border: 1px solid {button_border_color} !important;
         }}
+        
         .stButton > button {{
-            color: black !important; /* Ensure button text is black */
+            background-color: {button_bg_color} !important;
+            color: {button_text_color} !important;
+            border: 1px solid {button_border_color} !important;
+        }}
+        
+        /* Form submit button styling */
+        .stFormSubmitButton > button {{
+            background-color: {button_bg_color} !important;
+            color: {button_text_color} !important;
+            border: 1px solid {button_border_color} !important;
+        }}
+        
+        /* Title and headers */
+        h1, h2, h3, h4, h5, h6 {{
+            color: {app_text_color} !important;
+        }}
+        
+        /* All paragraphs and divs */
+        p, div, span {{
+            color: {app_text_color};
+        }}
+        
+        /* Markdown text */
+        .stMarkdown {{
+            color: {app_text_color} !important;
         }}
         </style>
         """,
@@ -643,8 +838,12 @@ current_session_history = st.session_state["all_sessions"][st.session_state["cur
 chat_placeholder = st.empty()
 with chat_placeholder.container():
     for idx, message in enumerate(current_session_history):
+        # Always use custom theme colors for messages, regardless of dark/light mode
+        msg_bg_color = selected_colors['background']
+        msg_text_color = selected_colors['text']
+        
         if message["role"] == "user":
-            st.markdown(f"<div class='user-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>👤 User:</strong> {message['text']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='user-message' style='{selected_font_style} background-color: {msg_bg_color}; color: {msg_text_color}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 80%;'><strong>👤 User:</strong> {message['text']}</div>", unsafe_allow_html=True)
         else:
             formatted_response = message['text'].replace("\n", "<br>")  # Replace newlines with <br> for HTML formatting
             
@@ -652,7 +851,7 @@ with chat_placeholder.container():
             col1, col2 = st.columns([0.9, 0.1])
             
             with col1:
-                st.markdown(f"<div class='assistant-message' style='{selected_font_style} background-color: {selected_colors['background']}; color: {selected_colors['text']}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 100%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='assistant-message' style='{selected_font_style} background-color: {msg_bg_color}; color: {msg_text_color}; padding: 8px; border-radius: 5px; margin-bottom: 5px; max-width: 100%;'><strong>🤖 Assistant:</strong> {formatted_response}</div>", unsafe_allow_html=True)
             
             with col2:
                 # Add play button for text-to-speech
@@ -670,10 +869,10 @@ with chat_placeholder.container():
                         audio_path = text_to_speech(message['text'], idx)
                 
                 if audio_path and os.path.exists(audio_path):
-                    # Display audio player
+                    # Display audio player with autoplay
                     with open(audio_path, "rb") as audio_file:
                         audio_bytes = audio_file.read()
-                        st.audio(audio_bytes, format="audio/mp3")
+                        st.audio(audio_bytes, format="audio/mp3", autoplay=True)
                     # Reset playing state after displaying
                     st.session_state["playing_audio"] = None
 
