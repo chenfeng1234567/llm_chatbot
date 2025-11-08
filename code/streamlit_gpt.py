@@ -355,7 +355,7 @@ def process_input(input_text):
     """Processes user input, calls OpenAI API, and updates chat history."""
     current_session_history.append({"role": "user", "text": input_text})
     st.session_state["is_thinking"] = True
-    thinking_placeholder.markdown("## 🤔 **Assistant is thinking... Please wait.**")
+    thinking_placeholder.markdown("<h1 style='font-size: 32px;'>🤔 <strong>Assistant is thinking... Please wait.</strong></h1>", unsafe_allow_html=True)
 
     try:
         # Select appropriate system prompt and get context
@@ -881,9 +881,9 @@ thinking_placeholder = st.empty()
 
 # Show thinking indicator when processing
 if st.session_state.get("is_thinking", False):
-    thinking_placeholder.markdown("## 🤔 **Assistant is thinking... Please wait.**")
+    thinking_placeholder.markdown("<h1 style='font-size: 32px;'>🤔 <strong>Assistant is thinking... Please wait.</strong></h1>", unsafe_allow_html=True)
 elif st.session_state.get("is_transcribing", False):
-    thinking_placeholder.markdown("## 🎤 **Transcribing your voice... Please wait.**")
+    thinking_placeholder.markdown("<h1 style='font-size: 32px;'>🎤 <strong>Transcribing your voice... Please wait.</strong></h1>", unsafe_allow_html=True)
 
 # Display example questions for new sessions
 if st.session_state.get("show_example_questions", True) and len(current_session_history) == 0:
@@ -941,8 +941,9 @@ with st.form(key="input_form", clear_on_submit=True):
     user_input = st.text_input(
         "Or type your question:",
         value=input_value,
-        placeholder="Type your message and press Enter, or use voice input above...",
-        disabled=st.session_state.get("is_thinking", False) or st.session_state.get("is_transcribing", False)
+        placeholder="Type your message or use voice input above...",
+        disabled=st.session_state.get("is_thinking", False) or st.session_state.get("is_transcribing", False),
+        label_visibility="visible"
     )
     
     submitted = st.form_submit_button(
