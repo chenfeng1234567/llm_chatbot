@@ -829,7 +829,7 @@ if "background_image" not in st.session_state or not st.session_state["backgroun
 ###############
 
 # Main App Title
-st.title("Retirenet Chatbot")
+st.title("Miranet Chatbot")
 
 # Get current session history
 current_session_history = st.session_state["all_sessions"][st.session_state["current_session_id"]]
